@@ -260,7 +260,7 @@ contains
 
     use mpi_interface, only :myid
 
-    integer, parameter :: nnames = 46
+    integer, parameter :: nnames = 49
     character (len=7), save :: sbase(nnames) =  (/ &
          'time   ','zt     ','zm     ','xt     ','xm     ','yt     '   ,& !1
          'ym     ','u0     ','v0     ','dn0    ','u      ','v      '   ,& !7 
@@ -269,7 +269,8 @@ contains
          'ngrp   ','rhail  ','nhail  ','rflx   ','lflxu  ','lflxd  '   ,& !25
          'shf    ','lhf    ','ustars ','a_tskin','a_qskin','tsoil  '   ,& !31
          'phiw   ','a_Qnet ','a_G0   ','mp_tlt ','mp_qt  ','mp_qr  '   ,& !37
-         'mp_qi  ','mp_qs  ','mp_qg  ','mp_qh  '/)  !43-46
+         'mp_qi  ','mp_qs  ','mp_qg  ','mp_qh  '  ,&  !43-46
+         'cvrx   ','scbl   ','scft   '     /)  !47-49
 
 
 
@@ -285,6 +286,9 @@ contains
     if (iradtyp > 1) nvar0 = nvar0+3
     if (isfctyp == 5) nvar0 = nvar0+9
     if (lmptend)      nvar0 = nvar0+7
+    if (lcouvreux)  nvar0=nvar0+1
+    if (lscalar_ft)  nvar0=nvar0+1
+    if (lscalar_bl)  nvar0=nvar0+1
 
     allocate (sanal(nvar0))
     sanal(1:nbase) = sbase(1:nbase)
@@ -377,6 +381,19 @@ contains
        nvar0 = nvar0+1
        sanal(nvar0) = sbase(46)
     end if
+    if (lcouvreux) then 
+       nvar0 = nvar0+1
+       sanal(nvar0) = sbase(47)
+    end if
+    if (lscalar_bl) then  
+       nvar0 = nvar0+1
+       sanal(nvar0) = sbase(48)
+    end if
+    if (lscalar_ft) then  
+       nvar0 = nvar0+1
+       sanal(nvar0) = sbase(49)
+    end if
+    
 
     nbeg = nvar0+1
     nend = nvar0+naddsc
@@ -591,6 +608,28 @@ contains
          iret = nf90_put_var(ncid0, VarID, mp_qh(:,i1:i2,j1:j2), start=ibeg, &
               count=icnt)
       end if
+
+      if (lcouvreux) then ! adding writing for scalars
+          nn = nn+1
+          iret = nf90_inq_varid(ncid0, sanal(nn), VarID)
+          iret = nf90_put_var(ncid0, VarID, a_cvrxp(:,i1:i2,j1:j2), start=ibeg, count=icnt)
+      end if
+      
+      if (lscalar_bl) then
+          nn = nn+1
+          iret = nf90_inq_varid(ncid0, sanal(nn), VarID)
+          iret = nf90_put_var(ncid0, VarID, a_scblp(:,i1:i2,j1:j2), start=ibeg,count=icnt)
+      end if
+
+      if (lscalar_ft) then
+          nn = nn+1
+          iret = nf90_inq_varid(ncid0, sanal(nn), VarID)
+          !if (myid==0) print*, nn, 'SCFT ID: ', VarID  ! Paolo
+          iret = nf90_put_var(ncid0, VarID, a_scftp(:,i1:i2,j1:j2), start=ibeg,count=icnt)
+      end if
+
+
+      
 
 !     if (nn /= nvar0) then
 !        if (myid == 0) print *, 'ABORTING:  Anal write error'
@@ -1534,6 +1573,18 @@ contains
        if (itype==0) ncinfo = 'Surface Ground Heat Flux'
        if (itype==1) ncinfo = 'W/m^2'
        if (itype==2) ncinfo = 'mmt'
+    case('scbl')  
+       if (itype==0) ncinfo = 'Boundary Layer Scalar'
+       if (itype==1) ncinfo = '-'
+       if (itype==2) ncinfo = 'tttt'
+    case('scft')   
+       if (itype==0) ncinfo = 'Free Tropospheric Scalar'
+       if (itype==1) ncinfo = '-'
+       if (itype==2) ncinfo = 'tttt'
+    case('cvrx')     
+       if (itype==0) ncinfo = 'Couvreux Tracer'
+       if (itype==1) ncinfo = '-'
+       if (itype==2) ncinfo = 'tttt'
     case default
        if (myid==0) print *, 'ABORTING: variable not found in ncinfo, ',trim(short_name)
        call appl_abort(0)

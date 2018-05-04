@@ -166,6 +166,7 @@ contains
     use thrm, only : thermo, rslf
     use step, only : case_name, lanom
     use mpi_interface, only : myid
+    use stat, only : get_zi ! Paolo: for scft
 
     implicit none
 
@@ -173,11 +174,15 @@ contains
     real    :: exner, pres, tk, rc, xran(nzp), zc, dist, xc
     real, dimension(nzp)  :: thli
 ! LINDA, b
-    real    :: qv, rh
+    real    :: qv, rh, thr 
     real, allocatable :: f_xyz_3d(:,:,:)
     allocate(f_xyz_3d(nzp,nxp,nyp))
     f_xyz_3d = 0.0
 ! LINDA, e
+
+    ! inversion for scft
+    if (lscalar_ft) thr=get_zi(nzp, nxp, nyp, 2, a_theta, dzi_m, zt, 1.)
+
 
     call htint(ns,ts,hs,nzp,th0,zt)
     call htint(ns,thl,hs,nzp,thli,zt)
@@ -192,6 +197,15 @@ contains
              if (associated (a_rp)) a_rp(k,i,j)   = rt0(k)
              a_theta(k,i,j) = th0(k)
              a_pexnr(k,i,j) = 0.
+             ! Initialize scalars
+             if (lscalar_bl) a_scblp(k,i,j) = 1E-03*zt(k)
+             if (lscalar_ft) then
+                   if (zt(k).GE.thr) then
+                       a_scftp(k,i,j) = 1.
+                   else
+                       a_scftp(k,i,j) = 0.
+                   end if
+             end if
           end do
        end do
     end do

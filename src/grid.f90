@@ -56,6 +56,10 @@ module grid
   logical           :: lwaterbudget = .false.  ! switch for liquid water budget diagnostics
   integer           :: ncvrx               ! Number of Couvreux scalar
   integer           :: ncld               ! Number of Couvreux scalar
+  logical           :: lscalar_bl = .false.
+  logical           :: lscalar_ft = .false.
+  integer           :: nscbl
+  integer           :: nscft
 
   integer           :: nfpt = 10           ! number of rayleigh friction points
   real              :: distim = 300.0      ! dissipation timescale
@@ -115,7 +119,8 @@ module grid
        a_rgrp,   a_rgrt,    & ! graupel
        a_ngrp,   a_ngrt,    &
        a_rhailp, a_rhailt,  & ! hail
-       a_nhailp, a_nhailt, a_rct, a_cld, a_cvrxp, a_cvrxt
+       a_nhailp, a_nhailt, a_rct, a_cld, a_cvrxp, a_cvrxt, &
+       a_scblp, a_scblt, a_scftp, a_scftt
  ! linda,b, output of tendencies
   real, dimension (:,:,:), allocatable :: &
         mp_qt, mp_qr, mp_qi, mp_qs, mp_qg, mp_qh, &
@@ -264,6 +269,14 @@ contains
       nscl = nscl+1 ! Additional radioactive scalar
       ncvrx = nscl
     end if
+    if (lscalar_ft) then
+      nscl = nscl+1 ! Additional free tropospheric scalar for SCu
+      nscft = nscl
+    end if
+    if (lscalar_bl) then
+      nscl = nscl+1 ! Additional boundary layer scalar
+      nscbl = nscl
+    end if
 
     allocate (a_xp(nzp,nxp,nyp,nscl), a_xt1(nzp,nxp,nyp,nscl),        &
          a_xt2(nzp,nxp,nyp,nscl))
@@ -332,6 +345,18 @@ contains
       trac_sfc = 1.
     else
       a_cvrxp => NULL()
+    end if
+    if (lscalar_bl) then
+      a_scblp=>a_xp(:,:,:,nscbl)
+      a_scblp(:,:,:) = 0.
+    else
+      a_scblp  => NULL()
+    end if
+    if (lscalar_ft) then
+      a_scftp=>a_xp(:,:,:,nscft)
+      a_scftp(:,:,:) = 0.
+    else
+      a_scftp  => NULL()
     end if
 
     allocate (a_ustar(nxp,nyp),a_tstar(nxp,nyp))

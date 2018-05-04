@@ -39,6 +39,8 @@ module step
   logical :: outflg = .true.
   logical :: statflg = .false.
   real    :: tau = 900.
+  real    :: tau_bl = 400.
+  real    :: tau_ft = 3200.
 !irina
   real    :: sst=292.
   real    :: div = 0.0
@@ -403,7 +405,9 @@ contains
                      a_rhailt,a_nhailt,a_nsnowt, a_ngrt,&
                      a_xt1, a_xt2, nscl, nxyzp, level, &
                      lwaterbudget, a_rct, ncld, &
-                     lcouvreux, a_cvrxt, ncvrx
+                     lcouvreux, a_cvrxt, ncvrx, &
+                     lscalar_ft, a_scftt, nscft, &
+                     lscalar_bl, a_scblt, nscbl
     use util, only : azero
 
     integer, intent (in) :: nstep
@@ -423,6 +427,8 @@ contains
        end if
        if (lwaterbudget) a_rct =>a_xt1(:,:,:,ncld)
        if (lcouvreux)    a_cvrxt =>a_xt1(:,:,:,ncvrx)
+       if (lscalar_bl)    a_scblt =>a_xt1(:,:,:,nscbl)
+       if (lscalar_ft)    a_scftt =>a_xt1(:,:,:,nscft)
        if (level >= 4) then
           a_ricet  =>a_xt1(:,:,:, 8)
           a_nicet  =>a_xt1(:,:,:, 9)
@@ -449,6 +455,8 @@ contains
        end if
        if (lwaterbudget) a_rct =>a_xt2(:,:,:,ncld)
        if (lcouvreux)    a_cvrxt =>a_xt2(:,:,:,ncvrx)
+       if (lscalar_bl)    a_scblt =>a_xt2(:,:,:,nscbl)
+       if (lscalar_ft)    a_scftt =>a_xt2(:,:,:,nscft)
        if (level >= 4) then
           a_ricet  =>a_xt2(:,:,:, 8)
           a_nicet  =>a_xt2(:,:,:, 9)
@@ -810,15 +818,29 @@ contains
   end subroutine sponge
 
   subroutine decay
-    use grid, only : lcouvreux, a_cvrxp, a_cvrxt, nxp, nyp, nzp, dt
-    integer :: i, j, k
-    real    :: rate
-    if (lcouvreux) then
-      rate = 1./(max(tau, dt))
+    use grid, only : lcouvreux, a_cvrxp, a_cvrxt, nxp, nyp, nzp, dt, &
+                     lscalar_bl, a_scblp, a_scblt, &
+                     lscalar_ft, a_scftp, a_scftt, a_theta, dzi_m, zt
+    use stat, only : get_zi
+    integer :: i, j, k, chkvalue
+    real    :: rate, thr
+
+    if (lcouvreux.OR.lscalar_ft.OR.lscalar_bl) then ! decay for tracer and scalars
+      if (lscalar_ft) thr=get_zi(nzp, nxp, nyp, 2, a_theta, dzi_m, zt, 1.)
+      if (lcouvreux) rate = 1./(max(tau, dt))
       do j = 3, nyp - 2
         do i = 3, nxp - 2
-          do k = 2, nzp
-            a_cvrxt(k,i,j) = a_cvrxt(k,i,j) - a_cvrxp(k,i,j) * rate
+          do k = 1, nzp
+            if (lcouvreux.AND.k.NE.1) a_cvrxt(k,i,j) = a_cvrxt(k,i,j) - a_cvrxp(k,i,j) * rate !decay couvreux tracer
+            if (lscalar_bl) a_scblt(k,i,j) = a_scblt(k,i,j) - ( a_scblp(k,i,j)-1E-03*zt(k) ) / tau_bl ! decay boundary layer scalar
+            if (lscalar_ft) then ! 1 above the boundary layer height, 0 below
+               if (zt(k).GE.thr) then
+                   chkvalue=1
+               else
+                   chkvalue=0
+               end if
+               a_scftt(k,i,j) = a_scftt(k,i,j) - ( a_scftp(k,i,j) - chkvalue ) / tau_ft ! decay free troposheric scalar
+            end if
           end do
         end do
       end do
