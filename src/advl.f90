@@ -35,7 +35,8 @@ contains
   subroutine ladvect
 
     use grid, only : a_ut, a_vt, a_wt, a_scr1, a_scr2, a_up,a_vp,a_wp,      &
-         nxp, nyp, nzp, dzi_t, dzi_m, dxi, dyi, dn0
+         nxp, nyp, nzp, dzi_t, dzi_m, dxi, dyi, dn0, &
+         a_wtadvt, a_scr3
     use stat, only : sflg, updtst, acc_tend
     use util, only : get_avg3
 
@@ -105,9 +106,15 @@ contains
       call ladvyw2nd(nzp,nxp,nyp,a_vp,a_wp,a_wt,a_scr2,dyi)
       call ladvzw2nd(nzp,nxp,nyp,a_wp,a_wt,a_scr1,a_scr2,dzmri)
     else   
-      call ladvxw(nzp,nxp,nyp,a_up,a_wp,a_wt,a_scr2,dxi)
-      call ladvyw(nzp,nxp,nyp,a_vp,a_wp,a_wt,a_scr2,dyi)
-      call ladvzw(nzp,nxp,nyp,a_wp,a_wt,a_scr1,a_scr2,dzmri)
+      ! PD: extract advection terms and store them: functions have been
+      ! modified to store advective terms in a_scr3
+      a_wtadvt(:,:,:)= 0.
+      call ladvxw(nzp,nxp,nyp,a_up,a_wp,a_wt,a_scr2,dxi,a_scr3)
+      a_wtadvt=a_wtadvt+a_scr3
+      call ladvyw(nzp,nxp,nyp,a_vp,a_wp,a_wt,a_scr2,dyi,a_scr3)
+      a_wtadvt=a_wtadvt+a_scr3
+      call ladvzw(nzp,nxp,nyp,a_wp,a_wt,a_scr1,a_scr2,dzmri,a_scr3)
+      a_wtadvt=a_wtadvt+a_scr3
     end if
  
     if (sflg) then
@@ -327,12 +334,12 @@ contains
   ! tendencies are accumulated if wt variable, dxi is the inverse of 
   ! delta-x the grid spacing in the horizontal direction.
   !
-  subroutine ladvxw(n1,n2,n3,u,w,wt,flx,dxi)
+  subroutine ladvxw(n1,n2,n3,u,w,wt,flx,dxi,tnd)
 
     integer, intent (in)  :: n1,n2,n3
     real, intent (in)     :: u(n1,n2,n3),w(n1,n2,n3),dxi
     real, intent (inout)  :: wt(n1,n2,n3)
-    real, intent (out)    :: flx(n1,n2,n3)
+    real, intent (out)    :: flx(n1,n2,n3),tnd(n1,n2,n3)
 
     integer :: i,j,k
 
@@ -347,6 +354,7 @@ contains
        do i=3,n2-2
           do k=2,n1-2
              wt(k,i,j)=wt(k,i,j)-(flx(k,i,j)-flx(k,i-1,j))*dxi
+             tnd(k,i,j)=(-(flx(k,i,j)-flx(k,i-1,j)))*dxi
           end do
        end do
     end do
@@ -358,12 +366,12 @@ contains
   ! tendencies are accumulated if wt variable, dyi is the inverse of 
   ! delta-y.
   !
-  subroutine ladvyw(n1,n2,n3,vm,w,wt,flx,dyi)
+  subroutine ladvyw(n1,n2,n3,vm,w,wt,flx,dyi,tnd)
 
     integer, intent (in)  ::  n1,n2,n3
     real, intent (in)     :: vm(n1,n2,n3),w(n1,n2,n3),dyi
     real, intent (inout)  :: wt(n1,n2,n3)
-    real, intent (out)    :: flx(n1,n2,n3)
+    real, intent (out)    :: flx(n1,n2,n3),tnd(n1,n2,n3)
 
     integer :: i,j,k
 
@@ -380,6 +388,7 @@ contains
        do i=1,n2
           do k=2,n1-2
              wt(k,i,j)=wt(k,i,j)-(flx(k,i,j)-flx(k,i,j-1))*dyi
+             tnd(k,i,j)=(-(flx(k,i,j)-flx(k,i,j-1)))*dyi
           end do
        end do
     end do
@@ -391,12 +400,12 @@ contains
   ! tendencies are accumulated if wt variable, v2 is the inverse density
   ! array valid at w-points
   !
-  subroutine ladvzw(n1,n2,n3,w,wt,wm,flx,v2)
+  subroutine ladvzw(n1,n2,n3,w,wt,wm,flx,v2,tnd)
 
     integer, intent (in) ::  n1,n2,n3
     real, intent (in)    :: wm(n1,n2,n3),w(n1,n2,n3),v2(n1)
     real, intent (inout) :: wt(n1,n2,n3)
-    real, intent (out)   :: flx(n1,n2,n3)
+    real, intent (out)   :: flx(n1,n2,n3),tnd(n1,n2,n3)
 
     integer :: i,j,k
 
@@ -412,6 +421,7 @@ contains
 
           do k=2,n1-2
              wt(k,i,j)=wt(k,i,j)-(flx(k+1,i,j)-flx(k,i,j))*v2(k)
+             tnd(k,i,j)=(-(flx(k+1,i,j)-flx(k,i,j)))*v2(k)
           end do
        end do
     end do

@@ -166,7 +166,7 @@ contains
     use thrm, only : thermo, rslf
     use step, only : case_name, lanom
     use mpi_interface, only : myid
-    use stat, only : get_zi ! Paolo: for scft
+    use stat, only : get_zi ! PD: for scft
 
     implicit none
 

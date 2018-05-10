@@ -260,7 +260,7 @@ contains
 
     use mpi_interface, only :myid
 
-    integer, parameter :: nnames = 49
+    integer, parameter :: nnames = 53
     character (len=7), save :: sbase(nnames) =  (/ &
          'time   ','zt     ','zm     ','xt     ','xm     ','yt     '   ,& !1
          'ym     ','u0     ','v0     ','dn0    ','u      ','v      '   ,& !7 
@@ -270,7 +270,8 @@ contains
          'shf    ','lhf    ','ustars ','a_tskin','a_qskin','tsoil  '   ,& !31
          'phiw   ','a_Qnet ','a_G0   ','mp_tlt ','mp_qt  ','mp_qr  '   ,& !37
          'mp_qi  ','mp_qs  ','mp_qg  ','mp_qh  '  ,&  !43-46
-         'cvrx   ','scbl   ','scft   '     /)  !47-49
+         'cvrx   ','scbl   ','scft   '  ,&  !47-49
+         'wttot  ','wtadv  ','wtbuo  ','wtdif'   /)  !50-53
 
 
 
@@ -289,6 +290,7 @@ contains
     if (lcouvreux)  nvar0=nvar0+1
     if (lscalar_ft)  nvar0=nvar0+1
     if (lscalar_bl)  nvar0=nvar0+1
+    if (laddwt)  nvar0=nvar0+4
 
     allocate (sanal(nvar0))
     sanal(1:nbase) = sbase(1:nbase)
@@ -393,7 +395,16 @@ contains
        nvar0 = nvar0+1
        sanal(nvar0) = sbase(49)
     end if
-    
+    if (laddwt) then
+       nvar0 = nvar0+1
+       sanal(nvar0) = sbase(50)
+       nvar0 = nvar0+1
+       sanal(nvar0) = sbase(51)
+       nvar0 = nvar0+1
+       sanal(nvar0) = sbase(52)
+       nvar0 = nvar0+1
+       sanal(nvar0) = sbase(53)
+    end if
 
     nbeg = nvar0+1
     nend = nvar0+naddsc
@@ -618,14 +629,33 @@ contains
       if (lscalar_bl) then
           nn = nn+1
           iret = nf90_inq_varid(ncid0, sanal(nn), VarID)
+          !if (myid==0) print*, nn, 'SCBL ID: ', VarID  !  PD
           iret = nf90_put_var(ncid0, VarID, a_scblp(:,i1:i2,j1:j2), start=ibeg,count=icnt)
       end if
 
       if (lscalar_ft) then
           nn = nn+1
           iret = nf90_inq_varid(ncid0, sanal(nn), VarID)
-          !if (myid==0) print*, nn, 'SCFT ID: ', VarID  ! Paolo
           iret = nf90_put_var(ncid0, VarID, a_scftp(:,i1:i2,j1:j2), start=ibeg,count=icnt)
+      end if
+
+      if (laddwt) then
+          nn = nn+1
+          iret = nf90_inq_varid(ncid0, sanal(nn), VarID)
+          iret = nf90_put_var(ncid0, VarID, wttot(:,i1:i2,j1:j2),start=ibeg,count=icnt)
+          if (myid==0) print*, wttot(50,10,10)
+          nn = nn+1
+          iret = nf90_inq_varid(ncid0, sanal(nn), VarID)
+          iret = nf90_put_var(ncid0, VarID, wtadv(:,i1:i2,j1:j2),start=ibeg,count=icnt)
+          if (myid==0) print*, wtadv(50,10,10)
+          nn = nn+1
+          iret = nf90_inq_varid(ncid0, sanal(nn), VarID)
+          iret = nf90_put_var(ncid0, VarID, wtbuo(:,i1:i2,j1:j2),start=ibeg,count=icnt)
+          if (myid==0) print*, wtbuo(50,10,10)
+          nn = nn+1
+          iret = nf90_inq_varid(ncid0, sanal(nn), VarID)
+          iret = nf90_put_var(ncid0, VarID, wtdif(:,i1:i2,j1:j2),start=ibeg,count=icnt)
+          if (myid==0) print*, wtdif(50,10,10)
       end if
 
 
@@ -1585,6 +1615,26 @@ contains
        if (itype==0) ncinfo = 'Couvreux Tracer'
        if (itype==1) ncinfo = '-'
        if (itype==2) ncinfo = 'tttt'
+    case('wttot')
+       if (itype==0) ncinfo = 'Tendency of vertical velocity'
+       if (itype==1) ncinfo = 'm/s^2'
+       if (itype==2) ncinfo = 'mttt'
+    case('wtadv')
+       if (itype==0) ncinfo = 'Tendency of vertical velocity from advection'
+       if (itype==1) ncinfo = 'm/s^2'
+       if (itype==2) ncinfo = 'mttt'
+    case('wtbuo')
+       if (itype==0) ncinfo = 'Tendency of vertical velocity from buoyancy'
+       if (itype==1) ncinfo = 'm/s^2'
+       if (itype==2) ncinfo = 'mttt'
+    case('dwdtadv')
+       if (itype==0) ncinfo = 'Tendency of vertical velocity from advection'
+       if (itype==1) ncinfo = 'm/s^2'
+       if (itype==2) ncinfo = 'mttt'
+    case('wtdif')
+       if (itype==0) ncinfo = 'Tendency of vertical velocity from diffusion'
+       if (itype==1) ncinfo = 'm/s^2'
+       if (itype==2) ncinfo = 'mttt'
     case default
        if (myid==0) print *, 'ABORTING: variable not found in ncinfo, ',trim(short_name)
        call appl_abort(0)

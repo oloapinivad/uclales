@@ -298,7 +298,8 @@ contains
     use mpi_interface, only : myid, appl_abort
     use grid, only : level, dt, nstep, a_tt, a_up, a_vp, a_wp, dxi, dyi, dzi_t, &
          nxp, nyp, nzp, dn0,a_scr1, u0, v0, a_ut, a_vt, a_wt, zt, a_ricep, a_rct, a_rpt, &
-         lwaterbudget, a_xt2
+         lwaterbudget, a_xt2, &
+         laddwt, naddwt, wtadv, wttot, wtbuo, wtdif
     use stat, only : sflg, statistics
     use sgsm, only : diffuse
     !use sgsm_dyn, only : calc_cs
@@ -323,6 +324,14 @@ contains
 
     xtime = time/86400. + strtim
     call timedep(time,timmax, sst)
+
+    if (laddwt) then ! cleanup tendencies
+        wttot(:,:,:) = 0
+        wtbuo(:,:,:) = 0
+        wtdif(:,:,:) = 0
+        wtadv(:,:,:) = 0
+    end if
+
     do nstep = 1,3
 
        ! Add additional criteria to ensure that some profile statistics that are
@@ -407,7 +416,8 @@ contains
                      lwaterbudget, a_rct, ncld, &
                      lcouvreux, a_cvrxt, ncvrx, &
                      lscalar_ft, a_scftt, nscft, &
-                     lscalar_bl, a_scblt, nscbl
+                     lscalar_bl, a_scblt, nscbl, &
+                     laddwt, naddwt, a_wtadvt, a_wtbuot, a_wtdift
     use util, only : azero
 
     integer, intent (in) :: nstep
@@ -429,6 +439,11 @@ contains
        if (lcouvreux)    a_cvrxt =>a_xt1(:,:,:,ncvrx)
        if (lscalar_bl)    a_scblt =>a_xt1(:,:,:,nscbl)
        if (lscalar_ft)    a_scftt =>a_xt1(:,:,:,nscft)
+       if (laddwt) then
+         a_wtadvt =>a_xt1(:,:,:,naddwt)
+         a_wtbuot =>a_xt1(:,:,:,naddwt+1)
+         a_wtdift =>a_xt1(:,:,:,naddwt+2)
+       end if
        if (level >= 4) then
           a_ricet  =>a_xt1(:,:,:, 8)
           a_nicet  =>a_xt1(:,:,:, 9)
@@ -457,6 +472,11 @@ contains
        if (lcouvreux)    a_cvrxt =>a_xt2(:,:,:,ncvrx)
        if (lscalar_bl)    a_scblt =>a_xt2(:,:,:,nscbl)
        if (lscalar_ft)    a_scftt =>a_xt2(:,:,:,nscft)
+       if (laddwt) then
+         a_wtadvt =>a_xt2(:,:,:,naddwt)
+         a_wtbuot =>a_xt2(:,:,:,naddwt+1)
+         a_wtdift =>a_xt2(:,:,:,naddwt+2) 
+       end if
        if (level >= 4) then
           a_ricet  =>a_xt2(:,:,:, 8)
           a_nicet  =>a_xt2(:,:,:, 9)
@@ -482,14 +502,30 @@ contains
 !irina
     use grid, only : a_xp, a_xt1, a_xt2, a_up, a_vp, a_wp, a_sp, dzi_t, dt,  &
          nscl, nxp, nyp, nzp, newvar,level, a_rpp,a_ricep,a_nicep,a_rsnowp,a_rgrp,a_npp,rkalpha,rkbeta, &
-         a_nsnowp,a_ngrp,a_rhailp,a_nhailp,a_rp,liquid
+         a_nsnowp,a_ngrp,a_rhailp,a_nhailp,a_rp,liquid, &
+         naddwt, laddwt, wttot, wtadv, wtbuo, wtdif  ! PD: for wttot
     use util, only : sclrset,velset
+    use mpi_interface, only : myid   
 
     integer, intent (in) :: nstep
 
     integer :: n
 
+    if (laddwt) then
+        wttot = wttot + (rkalpha(nstep)*a_xt1(:,:,:,3)        + rkbeta(nstep)*a_xt2(:,:,:,3))
+        wtadv = wtadv + (rkalpha(nstep)*a_xt1(:,:,:,naddwt) + rkbeta(nstep)*a_xt2(:,:,:,naddwt))
+        wtbuo = wtbuo + (rkalpha(nstep)*a_xt1(:,:,:,naddwt+1) + rkbeta(nstep)*a_xt2(:,:,:,naddwt+1))
+        wtdif = wtdif + (rkalpha(nstep)*a_xt1(:,:,:,naddwt+2) + rkbeta(nstep)*a_xt2(:,:,:,naddwt+2))
+    end if
+     
     a_xp = a_xp + dt *(rkalpha(nstep)*a_xt1 + rkbeta(nstep)*a_xt2)
+    if (myid.eq.0 .and. nstep.eq.3) then
+        print*,'Subtimestep ',nstep
+        print*,'TOT', wttot(50,10,10), a_xt1(50,10,10,naddwt),   a_xt2(50,10,10,naddwt)
+        print*,'ADV', wtadv(50,10,10), a_xt1(50,10,10,naddwt+1), a_xt2(50,10,10,naddwt+1)
+        print*,'BUO', wtbuo(50,10,10), a_xt1(50,10,10,naddwt+2), a_xt2(50,10,10,naddwt+2)
+        print*,'DIF', wtdif(50,10,10), a_xt1(50,10,10,naddwt+3), a_xt2(50,10,10,naddwt+3)
+    end if
 
     call velset(nzp,nxp,nyp,a_up,a_vp,a_wp)
 
@@ -651,7 +687,8 @@ contains
   subroutine buoyancy
 
     use grid, only : a_up, a_vp, a_wp, a_wt, vapor, a_theta, a_scr1, a_scr3,liquid,&
-         a_rp,a_rpp,a_ricep, a_rsnowp, a_rgrp, a_rhailp, nxp, nyp, nzp, dzi_m, th00, level, pi1
+         a_rp,a_rpp,a_ricep, a_rsnowp, a_rgrp, a_rhailp, nxp, nyp, nzp, dzi_m, th00, level, pi1, &
+         a_wtbuot
     use stat, only : sflg, comp_tke
     use util, only : ae1mm
     use thrm, only : update_pi1
@@ -664,9 +701,9 @@ contains
     if (level>4) rl = rl + a_rhailp
 
     if(level>0) then
-      call boyanc(nzp,nxp,nyp,level,a_wt,a_theta,th00,a_scr1,vapor,rl)
+      call boyanc(nzp,nxp,nyp,level,a_wt,a_theta,th00,a_scr1,a_wtbuot,vapor,rl)
     else
-      call boyanc(nzp,nxp,nyp,level,a_wt,a_theta,th00,a_scr1)
+      call boyanc(nzp,nxp,nyp,level,a_wt,a_theta,th00,a_scr1,a_wtbuot)
     end if
 
     call ae1mm(nzp,nxp,nyp,a_wt,awtbar)
@@ -679,14 +716,14 @@ contains
   ! ----------------------------------------------------------------------
   ! subroutine boyanc:
   !
-  subroutine boyanc(n1,n2,n3,level,wt,th,th00,scr,rv,rl)
+  subroutine boyanc(n1,n2,n3,level,wt,th,th00,scr,tnd,rv,rl)
 
     use defs, only: g, ep2
 
     integer, intent(in) :: n1,n2,n3,level
     real, intent(in)    :: th00,th(n1,n2,n3)
     real, intent(inout) :: wt(n1,n2,n3)
-    real, intent(out)   :: scr(n1,n2,n3)
+    real, intent(out)   :: scr(n1,n2,n3),tnd(n1,n2,n3)
     real, intent(in), optional :: rv(n1,n2,n3),rl(n1,n2,n3)
 
     integer :: k, i, j
@@ -712,6 +749,7 @@ contains
 
         do k=2,n1-2
           wt(k,i,j)=wt(k,i,j)+scr(k,i,j)+scr(k+1,i,j)
+          tnd(k,i,j)=scr(k,i,j)+scr(k+1,i,j)
         end do
        end do
     end do

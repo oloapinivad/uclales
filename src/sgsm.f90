@@ -67,7 +67,8 @@ contains
          ,a_rp, a_tp, a_sp, a_st, vapor, a_pexnr, a_theta,a_km               &
          , a_scr1, a_scr2, a_scr3, a_scr4, a_scr5, a_scr6, a_scr7, nscl, nxp, nyp    &
          , nzp, nxyp, nxyzp, zm, dxi, dyi, dzi_t, dzi_m, dt, th00, dn0           &
-         , pi0, pi1, level, uw_sfc, vw_sfc, ww_sfc, wt_sfc, wq_sfc,liquid, a_cvrxp, trac_sfc
+         , pi0, pi1, level, uw_sfc, vw_sfc, ww_sfc, wt_sfc, wq_sfc,liquid, a_cvrxp, trac_sfc &
+         , a_wtdift
 
     use util, only         : atob, azero, get_avg3
     use mpi_interface, only: cyclics, cyclicc
@@ -121,7 +122,7 @@ contains
          ,a_km,a_up,a_wp,a_ut,sz1)
 
     call diff_wpt(nzp,nxp,nyp,dn0,dzi_m,dzi_t,dyi,dxi,dt,ww_sfc,sxy1,a_scr4     &
-         ,a_km,a_wp,a_up,a_wt,sz3)
+         ,a_km,a_wp,a_up,a_wt,sz3,a_wtdift) !Paolo: add extraction of tendency
 
     call cyclics(nzp,nxp,nyp,a_wt,req)
     call cyclicc(nzp,nxp,nyp,a_wt,req)
@@ -579,7 +580,7 @@ contains
   ! wpt
   !
   subroutine  diff_wpt(n1,n2,n3,dn0,dzi_m,dzi_t,dxi,dyi,dt,sflx,tflx,s23,km,w,u   &
-       ,tnd,flx)
+       ,tnd,flx,diff)
 
     integer, intent(in) :: n1,n2,n3
     real, intent(in)    :: s23(n1,n2,n3)
@@ -587,7 +588,7 @@ contains
     real, intent(in)    :: sflx(n2,n3),tflx(n2,n3)
     real, intent(in)    :: dn0(n1),dzi_m(n1),dzi_t(n1),dxi,dyi,dt
 
-    real, intent(inout) :: flx(n1), tnd(n1,n2,n3)
+    real, intent(inout) :: flx(n1), tnd(n1,n2,n3), diff(n1,n2,n3)
 
     integer :: kp1,im1,jm1
 
@@ -651,6 +652,8 @@ contains
           do k=2,n1-2
              dfact = 1./((dn0(k)+dn0(k+1))*.5)
              tnd(k,i,j)=tnd(k,i,j) + dti*(sxz1(indh,k)-w(k,i,j))- dfact *     &
+                  ((szx5(k,i)-szx5(k,im1))*dxi + (s23(k,i,j)-s23(k,i,jm1))*dyi)
+             diff(k,i,j)=  dti*(sxz1(indh,k)-w(k,i,j))- dfact *     &
                   ((szx5(k,i)-szx5(k,im1))*dxi + (s23(k,i,j)-s23(k,i,jm1))*dyi)
              flx(k) = flx(k)-dzi_t(k)*(km(k,i,j)+km(k+1,i,j))*0.5               &
                   *(sxz1(indh,k)-sxz1(indh,k-1))
