@@ -68,7 +68,7 @@ contains
          , a_scr1, a_scr2, a_scr3, a_scr4, a_scr5, a_scr6, a_scr7, nscl, nxp, nyp    &
          , nzp, nxyp, nxyzp, zm, dxi, dyi, dzi_t, dzi_m, dt, th00, dn0           &
          , pi0, pi1, level, uw_sfc, vw_sfc, ww_sfc, wt_sfc, wq_sfc,liquid, a_cvrxp, trac_sfc &
-         , a_wtdift
+         , a_wtdift, a_scr8, laddwt
 
     use util, only         : atob, azero, get_avg3
     use mpi_interface, only: cyclics, cyclicc
@@ -122,7 +122,8 @@ contains
          ,a_km,a_up,a_wp,a_ut,sz1)
 
     call diff_wpt(nzp,nxp,nyp,dn0,dzi_m,dzi_t,dyi,dxi,dt,ww_sfc,sxy1,a_scr4     &
-         ,a_km,a_wp,a_up,a_wt,sz3,a_wtdift) !Paolo: add extraction of tendency
+         ,a_km,a_wp,a_up,a_wt,sz3,a_scr8) !Paolo: add extraction of tendency
+    if (laddwt) a_wtdift(:,:,:) = a_scr8(:,:,:)
 
     call cyclics(nzp,nxp,nyp,a_wt,req)
     call cyclicc(nzp,nxp,nyp,a_wt,req)
@@ -588,7 +589,8 @@ contains
     real, intent(in)    :: sflx(n2,n3),tflx(n2,n3)
     real, intent(in)    :: dn0(n1),dzi_m(n1),dzi_t(n1),dxi,dyi,dt
 
-    real, intent(inout) :: flx(n1), tnd(n1,n2,n3), diff(n1,n2,n3)
+    real, intent(inout) :: flx(n1), tnd(n1,n2,n3)
+    real, intent(out)   :: diff(n1,n2,n3)
 
     integer :: kp1,im1,jm1
 

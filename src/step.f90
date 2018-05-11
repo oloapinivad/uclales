@@ -513,19 +513,20 @@ contains
 
     if (laddwt) then
         wttot = wttot + (rkalpha(nstep)*a_xt1(:,:,:,3)        + rkbeta(nstep)*a_xt2(:,:,:,3))
-        wtadv = wtadv + (rkalpha(nstep)*a_xt1(:,:,:,naddwt) + rkbeta(nstep)*a_xt2(:,:,:,naddwt))
+        wtadv = wtadv + (rkalpha(nstep)*a_xt1(:,:,:,naddwt)   + rkbeta(nstep)*a_xt2(:,:,:,naddwt))
         wtbuo = wtbuo + (rkalpha(nstep)*a_xt1(:,:,:,naddwt+1) + rkbeta(nstep)*a_xt2(:,:,:,naddwt+1))
         wtdif = wtdif + (rkalpha(nstep)*a_xt1(:,:,:,naddwt+2) + rkbeta(nstep)*a_xt2(:,:,:,naddwt+2))
     end if
      
     a_xp = a_xp + dt *(rkalpha(nstep)*a_xt1 + rkbeta(nstep)*a_xt2)
-    if (myid.eq.0 .and. nstep.eq.3) then
-        print*,'Subtimestep ',nstep
-        print*,'TOT', wttot(50,10,10), a_xt1(50,10,10,naddwt),   a_xt2(50,10,10,naddwt)
-        print*,'ADV', wtadv(50,10,10), a_xt1(50,10,10,naddwt+1), a_xt2(50,10,10,naddwt+1)
-        print*,'BUO', wtbuo(50,10,10), a_xt1(50,10,10,naddwt+2), a_xt2(50,10,10,naddwt+2)
-        print*,'DIF', wtdif(50,10,10), a_xt1(50,10,10,naddwt+3), a_xt2(50,10,10,naddwt+3)
-    end if
+    !if (myid.eq.0) then
+        !print*,'Subtimestep ',nstep
+        !print*,'TOT', wttot(50,10,10), a_xt1(50,10,10,3),   a_xt2(50,10,10,3)
+        !print*,'ADV', wtadv(50,10,10), a_xt1(50,10,10,naddwt+1), a_xt2(50,10,10,naddwt)
+        !print*,'BUO', wtbuo(50,10,10), a_xt1(50,10,10,naddwt+2), a_xt2(50,10,10,naddwt+1)
+        !print*,'DIF', wtdif(50,10,10), a_wtdift(50,10,10), a_xt1(50,10,10,naddwt+2), a_xt2(50,10,10,naddwt+2)
+        !print*,'RES', wttot(50,10,10) - ( wtadv(50,10,10) + wtbuo(50,10,10) + wtdif(50,10,10) )
+    !end if
 
     call velset(nzp,nxp,nyp,a_up,a_vp,a_wp)
 
@@ -686,9 +687,9 @@ contains
   !
   subroutine buoyancy
 
-    use grid, only : a_up, a_vp, a_wp, a_wt, vapor, a_theta, a_scr1, a_scr3,liquid,&
+    use grid, only : a_up, a_vp, a_wp, a_wt, vapor, a_theta, a_scr1, a_scr3, liquid,&
          a_rp,a_rpp,a_ricep, a_rsnowp, a_rgrp, a_rhailp, nxp, nyp, nzp, dzi_m, th00, level, pi1, &
-         a_wtbuot
+         a_wtbuot, a_scr8, laddwt
     use stat, only : sflg, comp_tke
     use util, only : ae1mm
     use thrm, only : update_pi1
@@ -701,10 +702,12 @@ contains
     if (level>4) rl = rl + a_rhailp
 
     if(level>0) then
-      call boyanc(nzp,nxp,nyp,level,a_wt,a_theta,th00,a_scr1,a_wtbuot,vapor,rl)
+      call boyanc(nzp,nxp,nyp,level,a_wt,a_theta,th00,a_scr1,a_scr8,vapor,rl)
     else
-      call boyanc(nzp,nxp,nyp,level,a_wt,a_theta,th00,a_scr1,a_wtbuot)
+      call boyanc(nzp,nxp,nyp,level,a_wt,a_theta,th00,a_scr1,a_scr8)
     end if
+
+    if (laddwt) a_wtbuot(:,:,:) = a_scr8(:,:,:)
 
     call ae1mm(nzp,nxp,nyp,a_wt,awtbar)
     call update_pi1(nzp,awtbar,pi1)

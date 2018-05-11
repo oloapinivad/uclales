@@ -626,20 +626,19 @@ contains
           iret = nf90_put_var(ncid0, VarID, a_cvrxp(:,i1:i2,j1:j2), start=ibeg, count=icnt)
       end if
       
-      if (lscalar_bl) then
+      if (lscalar_bl) then  ! PD
           nn = nn+1
           iret = nf90_inq_varid(ncid0, sanal(nn), VarID)
-          !if (myid==0) print*, nn, 'SCBL ID: ', VarID  !  PD
           iret = nf90_put_var(ncid0, VarID, a_scblp(:,i1:i2,j1:j2), start=ibeg,count=icnt)
       end if
 
-      if (lscalar_ft) then
+      if (lscalar_ft) then ! PD
           nn = nn+1
           iret = nf90_inq_varid(ncid0, sanal(nn), VarID)
           iret = nf90_put_var(ncid0, VarID, a_scftp(:,i1:i2,j1:j2), start=ibeg,count=icnt)
       end if
 
-      if (laddwt) then
+      if (laddwt) then ! PD
           nn = nn+1
           iret = nf90_inq_varid(ncid0, sanal(nn), VarID)
           iret = nf90_put_var(ncid0, VarID, wttot(:,i1:i2,j1:j2),start=ibeg,count=icnt)
@@ -651,11 +650,9 @@ contains
           nn = nn+1
           iret = nf90_inq_varid(ncid0, sanal(nn), VarID)
           iret = nf90_put_var(ncid0, VarID, wtbuo(:,i1:i2,j1:j2),start=ibeg,count=icnt)
-          if (myid==0) print*, wtbuo(50,10,10)
           nn = nn+1
           iret = nf90_inq_varid(ncid0, sanal(nn), VarID)
           iret = nf90_put_var(ncid0, VarID, wtdif(:,i1:i2,j1:j2),start=ibeg,count=icnt)
-          if (myid==0) print*, wtdif(50,10,10)
       end if
 
 

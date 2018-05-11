@@ -104,7 +104,7 @@ module grid
   !irina
   real, dimension (:,:,:), allocatable ::                                     &
        a_theta, a_pexnr, press, vapor, a_rflx, a_sflx, liquid, rsi,           &
-       a_scr1, a_scr2, a_scr3, a_scr4, a_scr5, a_scr6, a_scr7,                &
+       a_scr1, a_scr2, a_scr3, a_scr4, a_scr5, a_scr6, a_scr7, a_scr8,        &
        a_lflxu, a_lflxd, a_sflxu, a_sflxd,a_km, &
        prc_c, prc_r, prc_i, prc_s, prc_g, prc_h , prc_acc,               &
        a_lflxu_ca, a_lflxd_ca, a_sflxu_ca, a_sflxd_ca, &
@@ -253,6 +253,7 @@ contains
  !
     allocate (a_scr1(nzp,nxp,nyp),a_scr2(nzp,nxp,nyp),a_scr3(nzp,nxp,nyp))
     allocate (a_scr4(nzp,nxp,nyp),a_scr5(nzp,nxp,nyp),a_scr6(nzp,nxp,nyp),a_scr7(nzp,nxp,nyp))
+    allocate (a_scr8(nzp,nxp,nyp))
     a_scr1(:,:,:) = 0.
     a_scr2(:,:,:) = 0.
     a_scr3(:,:,:) = 0.
@@ -260,7 +261,8 @@ contains
     a_scr5(:,:,:) = 0.
     a_scr6(:,:,:) = 0.
     a_scr7(:,:,:) = 0.
-    memsize = memsize + 7*nxyzp
+    a_scr8(:,:,:) = 0.
+    memsize = memsize + 8*nxyzp
 
     nscl = nscl+naddsc
     if (level   > 0) nscl = nscl+1  ! qt only
@@ -376,10 +378,18 @@ contains
       allocate(wtadv(nzp,nxp,nyp))
       allocate(wtbuo(nzp,nxp,nyp))
       allocate(wtdif(nzp,nxp,nyp))
-      wttot(:,:,:) = 0.
-      wtadv(:,:,:) = 0.
-      wtbuo(:,:,:) = 0.
-      wtdif(:,:,:) = 0.
+      !wttot(:,:,:) = 0.
+      !wtadv(:,:,:) = 0.
+      !wtbuo(:,:,:) = 0.
+      !wtdif(:,:,:) = 0.
+      !allocate(a_wttott(nzp,nxp,nyp))
+      !allocate(a_wtadvt(nzp,nxp,nyp))
+      !allocate(a_wtbuot(nzp,nxp,nyp))
+      !allocate(a_wtdift(nzp,nxp,nyp))
+      !a_wtadvt(:,:,:) = 0.
+      !a_wtbuot(:,:,:) = 0.
+      !a_wtdift(:,:,:) = 0.
+      !a_wttott(:,:,:) = 0.
       memsize = memsize + 4 * nxyzp
     end if
 
