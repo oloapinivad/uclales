@@ -62,8 +62,7 @@ module grid
   integer           :: nscbl 
   integer           :: nscft
 
-  integer           :: naddwt                ! PD: index of tendencies
-  logical           :: laddwt = .false.      ! PD: flag for tendencies  
+  logical           :: laddwt = .false.      ! PD: flag for vertical momentum tendencies storage
 
   integer           :: nfpt = 10           ! number of rayleigh friction points
   real              :: distim = 300.0      ! dissipation timescale
@@ -126,7 +125,7 @@ module grid
        a_rhailp, a_rhailt,  & ! hail
        a_nhailp, a_nhailt, a_rct, a_cld, a_cvrxp, a_cvrxt, &
        a_scblp, a_scblt, a_scftp, a_scftt, & ! scalars
-       a_wtadvt, a_wtbuot, a_wtdift ! PD: pointer for tendencies calculation
+       a_wtadvt, a_wtbuot, a_wtdift ! PD: pointer for tendencies calculation (no need for wttot)
  !
  ! linda,b, output of tendencies
   real, dimension (:,:,:), allocatable :: &
@@ -158,7 +157,8 @@ module grid
   !
   ! Memory for prognostic variables
   !
-  real, dimension (:,:,:,:), allocatable, target :: a_xp, a_xt1, a_xt2
+  real, dimension (:,:,:,:), allocatable, target :: a_xp, a_xt1, a_xt2, & 
+                                                    a_xwt1, a_xwt2  ! PD: for tendencies
   !
   !
   integer :: nscl = 4
@@ -286,14 +286,16 @@ contains
       nscl = nscl+1 ! Additional boundary layer scalar
       nscbl = nscl
     end if
-    if (laddwt) then ! PD: Additional vertical momentum tendencies extraction
-      naddwt = nscl + 1
-      nscl = nscl + 3 ! wtadv, wtbuo, wtdif (wttot is using w)
-    end if
 
 
     allocate (a_xp(nzp,nxp,nyp,nscl), a_xt1(nzp,nxp,nyp,nscl),        &
          a_xt2(nzp,nxp,nyp,nscl))
+    
+    if (laddwt) then  ! PD tendencies to be allocated
+          allocate (a_xwt1(nzp,nxp,nyp,3), a_xwt2(nzp,nxp,nyp,3))
+          a_xwt1(:,:,:,:) = 0.
+          a_xwt2(:,:,:,:) = 0.
+    end if
 
     a_xp(:,:,:,:)  = 0.
     a_xt1(:,:,:,:) = 0.
@@ -373,23 +375,11 @@ contains
       a_scftp  => NULL()
     end if
 
-    if (laddwt) then
+    if (laddwt) then ! PD allocate tendencies store
       allocate(wttot(nzp,nxp,nyp))
       allocate(wtadv(nzp,nxp,nyp))
       allocate(wtbuo(nzp,nxp,nyp))
       allocate(wtdif(nzp,nxp,nyp))
-      !wttot(:,:,:) = 0.
-      !wtadv(:,:,:) = 0.
-      !wtbuo(:,:,:) = 0.
-      !wtdif(:,:,:) = 0.
-      !allocate(a_wttott(nzp,nxp,nyp))
-      !allocate(a_wtadvt(nzp,nxp,nyp))
-      !allocate(a_wtbuot(nzp,nxp,nyp))
-      !allocate(a_wtdift(nzp,nxp,nyp))
-      !a_wtadvt(:,:,:) = 0.
-      !a_wtbuot(:,:,:) = 0.
-      !a_wtdift(:,:,:) = 0.
-      !a_wttott(:,:,:) = 0.
       memsize = memsize + 4 * nxyzp
     end if
 

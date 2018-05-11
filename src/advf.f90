@@ -34,7 +34,7 @@ contains
 
     use grid, only : a_up, a_vp, a_wp, a_sp, a_st, liquid, a_scr1, a_scr2,    &
          dn0 , nxp, nyp, nzp, nxyzp, dt, dzi_t, dzi_m, zt, dxi, dyi, level, nscl, &
-         newvar, nstep, naddwt, laddwt
+         newvar, nstep, laddwt
 
     use stat, only      : sflg, updtst
     use util, only      : atob, get_avg3
@@ -58,9 +58,6 @@ contains
     ! w-point
     !
     do n=4,nscl
-       if (laddwt) then 
-          if (n.ge.naddwt.and.n.le.(naddwt+2)) cycle ! PD: avoid scalar advection for vert.mom.tend. (to be improved)
-       end if
        call newvar(n,istep=nstep)
        call atob(nxyzp,a_sp,a_scr1)
 

@@ -642,11 +642,10 @@ contains
           nn = nn+1
           iret = nf90_inq_varid(ncid0, sanal(nn), VarID)
           iret = nf90_put_var(ncid0, VarID, wttot(:,i1:i2,j1:j2),start=ibeg,count=icnt)
-          if (myid==0) print*, wttot(50,10,10)
+          !if (myid==0) print*, wttot(50,10,10)
           nn = nn+1
           iret = nf90_inq_varid(ncid0, sanal(nn), VarID)
           iret = nf90_put_var(ncid0, VarID, wtadv(:,i1:i2,j1:j2),start=ibeg,count=icnt)
-          if (myid==0) print*, wtadv(50,10,10)
           nn = nn+1
           iret = nf90_inq_varid(ncid0, sanal(nn), VarID)
           iret = nf90_put_var(ncid0, VarID, wtbuo(:,i1:i2,j1:j2),start=ibeg,count=icnt)

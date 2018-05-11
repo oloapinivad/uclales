@@ -299,7 +299,7 @@ contains
     use grid, only : level, dt, nstep, a_tt, a_up, a_vp, a_wp, dxi, dyi, dzi_t, &
          nxp, nyp, nzp, dn0,a_scr1, u0, v0, a_ut, a_vt, a_wt, zt, a_ricep, a_rct, a_rpt, &
          lwaterbudget, a_xt2, &
-         laddwt, naddwt, wtadv, wttot, wtbuo, wtdif
+         laddwt, wtadv, wttot, wtbuo, wtdif
     use stat, only : sflg, statistics
     use sgsm, only : diffuse
     !use sgsm_dyn, only : calc_cs
@@ -417,7 +417,7 @@ contains
                      lcouvreux, a_cvrxt, ncvrx, &
                      lscalar_ft, a_scftt, nscft, &
                      lscalar_bl, a_scblt, nscbl, &
-                     laddwt, naddwt, a_wtadvt, a_wtbuot, a_wtdift
+                     laddwt, a_wtadvt, a_wtbuot, a_wtdift, a_xwt1, a_xwt2 !PD
     use util, only : azero
 
     integer, intent (in) :: nstep
@@ -439,10 +439,11 @@ contains
        if (lcouvreux)    a_cvrxt =>a_xt1(:,:,:,ncvrx)
        if (lscalar_bl)    a_scblt =>a_xt1(:,:,:,nscbl)
        if (lscalar_ft)    a_scftt =>a_xt1(:,:,:,nscft)
-       if (laddwt) then
-         a_wtadvt =>a_xt1(:,:,:,naddwt)
-         a_wtbuot =>a_xt1(:,:,:,naddwt+1)
-         a_wtdift =>a_xt1(:,:,:,naddwt+2)
+       if (laddwt) then !PD 
+         call azero(nxyzp*3,a_xwt1)
+         a_wtadvt =>a_xwt1(:,:,:,1)
+         a_wtbuot =>a_xwt1(:,:,:,2)
+         a_wtdift =>a_xwt1(:,:,:,3)
        end if
        if (level >= 4) then
           a_ricet  =>a_xt1(:,:,:, 8)
@@ -472,10 +473,11 @@ contains
        if (lcouvreux)    a_cvrxt =>a_xt2(:,:,:,ncvrx)
        if (lscalar_bl)    a_scblt =>a_xt2(:,:,:,nscbl)
        if (lscalar_ft)    a_scftt =>a_xt2(:,:,:,nscft)
-       if (laddwt) then
-         a_wtadvt =>a_xt2(:,:,:,naddwt)
-         a_wtbuot =>a_xt2(:,:,:,naddwt+1)
-         a_wtdift =>a_xt2(:,:,:,naddwt+2) 
+       if (laddwt) then ! PD
+         call azero(nxyzp*3,a_xwt2)
+         a_wtadvt =>a_xwt2(:,:,:,1)
+         a_wtbuot =>a_xwt2(:,:,:,2)
+         a_wtdift =>a_xwt2(:,:,:,3) 
        end if
        if (level >= 4) then
           a_ricet  =>a_xt2(:,:,:, 8)
@@ -492,7 +494,28 @@ contains
 
     end select
 
-  end subroutine tendencies
+   end subroutine tendencies
+
+  !
+  ! ----------------------------------------------------------------------
+  ! subroutine storevrtmomtnd:
+  ! this stores tendencies of vertical momentum equation
+  !
+
+  subroutine storevrtmomtnd(nstep)
+
+    use grid, only: a_xwt1,a_xwt2,rkalpha,rkbeta,wttot, wtadv, wtbuo, wtdif, a_xt1, a_xt2
+        
+        integer, intent (in) :: nstep
+
+        wttot = wttot + (rkalpha(nstep)*a_xt1(:,:,:,3)  + rkbeta(nstep)*a_xt2(:,:,:,3))
+        wtadv = wtadv + (rkalpha(nstep)*a_xwt1(:,:,:,1) + rkbeta(nstep)*a_xwt2(:,:,:,1))
+        wtbuo = wtbuo + (rkalpha(nstep)*a_xwt1(:,:,:,2) + rkbeta(nstep)*a_xwt2(:,:,:,2))
+        wtdif = wtdif + (rkalpha(nstep)*a_xwt1(:,:,:,3) + rkbeta(nstep)*a_xwt2(:,:,:,3))
+   
+   end subroutine  storevrtmomtnd
+
+
   !
   ! ----------------------------------------------------------------------
   ! subroutine update:
@@ -502,8 +525,8 @@ contains
 !irina
     use grid, only : a_xp, a_xt1, a_xt2, a_up, a_vp, a_wp, a_sp, dzi_t, dt,  &
          nscl, nxp, nyp, nzp, newvar,level, a_rpp,a_ricep,a_nicep,a_rsnowp,a_rgrp,a_npp,rkalpha,rkbeta, &
-         a_nsnowp,a_ngrp,a_rhailp,a_nhailp,a_rp,liquid, &
-         naddwt, laddwt, wttot, wtadv, wtbuo, wtdif  ! PD: for wttot
+         a_nsnowp,a_ngrp,a_rhailp,a_nhailp,a_rp,liquid, & 
+         laddwt ! PD
     use util, only : sclrset,velset
     use mpi_interface, only : myid   
 
@@ -511,22 +534,9 @@ contains
 
     integer :: n
 
-    if (laddwt) then
-        wttot = wttot + (rkalpha(nstep)*a_xt1(:,:,:,3)        + rkbeta(nstep)*a_xt2(:,:,:,3))
-        wtadv = wtadv + (rkalpha(nstep)*a_xt1(:,:,:,naddwt)   + rkbeta(nstep)*a_xt2(:,:,:,naddwt))
-        wtbuo = wtbuo + (rkalpha(nstep)*a_xt1(:,:,:,naddwt+1) + rkbeta(nstep)*a_xt2(:,:,:,naddwt+1))
-        wtdif = wtdif + (rkalpha(nstep)*a_xt1(:,:,:,naddwt+2) + rkbeta(nstep)*a_xt2(:,:,:,naddwt+2))
-    end if
-     
     a_xp = a_xp + dt *(rkalpha(nstep)*a_xt1 + rkbeta(nstep)*a_xt2)
-    !if (myid.eq.0) then
-        !print*,'Subtimestep ',nstep
-        !print*,'TOT', wttot(50,10,10), a_xt1(50,10,10,3),   a_xt2(50,10,10,3)
-        !print*,'ADV', wtadv(50,10,10), a_xt1(50,10,10,naddwt+1), a_xt2(50,10,10,naddwt)
-        !print*,'BUO', wtbuo(50,10,10), a_xt1(50,10,10,naddwt+2), a_xt2(50,10,10,naddwt+1)
-        !print*,'DIF', wtdif(50,10,10), a_wtdift(50,10,10), a_xt1(50,10,10,naddwt+2), a_xt2(50,10,10,naddwt+2)
-        !print*,'RES', wttot(50,10,10) - ( wtadv(50,10,10) + wtbuo(50,10,10) + wtdif(50,10,10) )
-    !end if
+    
+    if (laddwt) call storevrtmomtnd(nstep) !PD
 
     call velset(nzp,nxp,nyp,a_up,a_vp,a_wp)
 
